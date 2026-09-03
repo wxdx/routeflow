@@ -183,8 +183,20 @@ public sealed class SingBoxProcessService(AppPaths paths)
         {
             if (RuntimeInformation.IsOSPlatform(OSPlatform.Linux))
             {
-                var link = new FileInfo($"/proc/{process.Id}/exe").ResolveLinkTarget(true);
-                return link is not null && PathsEqual(link.FullName, paths.SingBoxPath);
+                try
+                {
+                    var link = new FileInfo($"/proc/{process.Id}/exe").ResolveLinkTarget(true);
+                    if (link is not null)
+                        return PathsEqual(link.FullName, paths.SingBoxPath);
+                }
+                catch (UnauthorizedAccessException)
+                {
+                    // Root-owned processes may hide /proc/<pid>/exe from the desktop user.
+                }
+
+                var commandLine = File.ReadAllBytes($"/proc/{process.Id}/cmdline");
+                var executable = Encoding.UTF8.GetString(commandLine).Split('\0', 2)[0];
+                return executable.Length > 0 && PathsEqual(executable, paths.SingBoxPath);
             }
             try
             {

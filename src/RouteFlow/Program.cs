@@ -16,6 +16,8 @@ sealed class Program
     {
         if (args.Length == 1 && string.Equals(args[0], "--self-test", StringComparison.OrdinalIgnoreCase))
             return await RunSelfTestAsync();
+        if (args.Length == 1 && string.Equals(args[0], "--repair-permissions", StringComparison.OrdinalIgnoreCase))
+            return await RunProcessActionAsync("repair-permissions", RunMode.Client);
         if (args.Length == 1 && TryParseProcessAction(args[0], out var action, out var mode))
             return await RunProcessActionAsync(action, mode);
 

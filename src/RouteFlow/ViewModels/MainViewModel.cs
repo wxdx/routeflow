@@ -170,7 +170,18 @@ public partial class MainViewModel(
     {
         await RunBusyAsync(async () =>
         {
-            var current = await processService.GetStatusAsync();
+            ProcessStatus current;
+            try
+            {
+                current = await processService.GetStatusAsync();
+            }
+            catch (UnauthorizedAccessException) when (OperatingSystem.IsLinux())
+            {
+                await privilegedActionService.RepairRuntimePermissionsAsync();
+                await RefreshStatusAsync();
+                StatusText = "运行目录权限已修复，请再次操作";
+                return;
+            }
             if (current.IsRunning)
             {
                 await privilegedActionService.ExecuteAsync("stop", SelectedMode);

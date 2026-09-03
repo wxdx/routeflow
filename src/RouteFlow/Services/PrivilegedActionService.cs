@@ -24,22 +24,34 @@ public sealed class PrivilegedActionService(AppPaths paths, SingBoxProcessServic
 
     public async Task ExecuteDirectAsync(string action, RunMode mode, CancellationToken cancellationToken = default)
     {
-        switch (action.ToLowerInvariant())
+        try
         {
-            case "start":
-                await processService.StartAsync(ConfigurationPath(mode), mode, cancellationToken);
-                break;
-            case "stop":
-                await processService.StopAsync(cancellationToken);
-                break;
-            case "restart":
-                await processService.StopAsync(cancellationToken);
-                await processService.StartAsync(ConfigurationPath(mode), mode, cancellationToken);
-                break;
-            default:
-                throw new ArgumentOutOfRangeException(nameof(action), action, "不支持的操作。");
+            switch (action.ToLowerInvariant())
+            {
+                case "start":
+                    await processService.StartAsync(ConfigurationPath(mode), mode, cancellationToken);
+                    break;
+                case "stop":
+                    await processService.StopAsync(cancellationToken);
+                    break;
+                case "restart":
+                    await processService.StopAsync(cancellationToken);
+                    await processService.StartAsync(ConfigurationPath(mode), mode, cancellationToken);
+                    break;
+                case "repair-permissions":
+                    break;
+                default:
+                    throw new ArgumentOutOfRangeException(nameof(action), action, "不支持的操作。");
+            }
+        }
+        finally
+        {
+            RestoreRuntimeOwnership();
         }
     }
+
+    public Task RepairRuntimePermissionsAsync(CancellationToken cancellationToken = default) =>
+        ExecuteAsync("repair-permissions", RunMode.Client, cancellationToken);
 
     private Process StartElevatedHelper(string action, RunMode mode)
     {
@@ -111,10 +123,35 @@ public sealed class PrivilegedActionService(AppPaths paths, SingBoxProcessServic
 
     private static string ModeValue(RunMode mode) => mode == RunMode.Relay ? "relay" : "client";
 
+    private void RestoreRuntimeOwnership()
+    {
+        if (!OperatingSystem.IsLinux() || GetEffectiveUserId() != 0 ||
+            !uint.TryParse(Environment.GetEnvironmentVariable("PKEXEC_UID"), out var userId))
+            return;
+
+        var pathsToRestore = new[]
+        {
+            paths.RuntimeDirectory,
+            paths.RuntimeConfigurationPath,
+            paths.RunModePath,
+            paths.PidPath,
+            paths.StandardOutputLogPath,
+            paths.StandardErrorLogPath,
+        };
+        foreach (var path in pathsToRestore.Where(File.Exists).Concat(pathsToRestore.Where(Directory.Exists)))
+        {
+            if (ChangeSymbolicLinkOwner(path, userId, uint.MaxValue) != 0)
+                throw new IOException($"无法恢复运行文件所有权：{path}", new Win32Exception(Marshal.GetLastPInvokeError()));
+        }
+    }
+
     [DllImport("shell32.dll", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static extern bool IsUserAnAdmin();
 
     [DllImport("libc", EntryPoint = "geteuid")]
     private static extern uint GetEffectiveUserId();
+
+    [DllImport("libc", EntryPoint = "lchown", SetLastError = true)]
+    private static extern int ChangeSymbolicLinkOwner(string path, uint owner, uint group);
 }
