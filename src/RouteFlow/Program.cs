@@ -1,5 +1,6 @@
 using Avalonia;
 using System;
+using System.Threading;
 using RouteFlow.Models;
 using RouteFlow.Services;
 
@@ -18,7 +19,32 @@ sealed class Program
         if (args.Length == 1 && TryParseProcessAction(args[0], out var action, out var mode))
             return await RunProcessActionAsync(action, mode);
 
-        return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        using var instanceMutex = new Mutex(false, SingleInstanceService.MutexName);
+        var ownsMutex = false;
+        try
+        {
+            try
+            {
+                ownsMutex = instanceMutex.WaitOne(0);
+            }
+            catch (AbandonedMutexException)
+            {
+                ownsMutex = true;
+            }
+
+            if (!ownsMutex)
+            {
+                await SingleInstanceService.ActivateExistingInstanceAsync();
+                return 0;
+            }
+
+            return BuildAvaloniaApp().StartWithClassicDesktopLifetime(args);
+        }
+        finally
+        {
+            if (ownsMutex)
+                instanceMutex.ReleaseMutex();
+        }
     }
 
     private static async Task<int> RunSelfTestAsync()

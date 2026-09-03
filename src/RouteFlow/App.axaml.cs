@@ -3,6 +3,7 @@ using Avalonia.Controls;
 using Avalonia.Controls.ApplicationLifetimes;
 using Avalonia.Markup.Xaml;
 using Avalonia.Platform;
+using Avalonia.Threading;
 using RouteFlow.Models;
 using RouteFlow.Services;
 using RouteFlow.ViewModels;
@@ -20,6 +21,7 @@ public partial class App : Application
     private NativeMenuItem? _restartItem;
     private NativeMenuItem? _clientModeItem;
     private NativeMenuItem? _relayModeItem;
+    private SingleInstanceService? _singleInstanceService;
 
     public override void Initialize()
     {
@@ -51,9 +53,16 @@ public partial class App : Application
                 DataContext = _viewModel,
             };
             desktop.MainWindow = _mainWindow;
+            _singleInstanceService = new SingleInstanceService();
+            _singleInstanceService.Start(() => Dispatcher.UIThread.Post(ShowMainWindow));
             CreateTrayIcon();
             _viewModel.PropertyChanged += (_, _) => UpdateTrayState();
-            desktop.Exit += (_, _) => DisposeTrayIcon();
+            desktop.Exit += (_, _) =>
+            {
+                _singleInstanceService?.Dispose();
+                _singleInstanceService = null;
+                DisposeTrayIcon();
+            };
         }
 
         base.OnFrameworkInitializationCompleted();
