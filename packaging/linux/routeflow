@@ -1,0 +1,14 @@
+#!/bin/sh
+set -eu
+
+config_root="${XDG_CONFIG_HOME:-$HOME/.config}/routeflow"
+config_file="$config_root/config.json"
+
+mkdir -p "$config_root"
+if [ ! -f "$config_file" ]; then
+    cp /usr/share/routeflow/config.json "$config_file"
+fi
+
+export SING_BOX_HOME="$config_root"
+export SING_BOX_PATH="/opt/routeflow/sing-box"
+exec /opt/routeflow/RouteFlow "$@"

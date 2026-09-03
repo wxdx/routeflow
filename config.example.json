@@ -1,0 +1,82 @@
+{
+  "log": {
+    "level": "info"
+  },
+  "dns": {
+    "servers": [
+      {
+        "type": "tls",
+        "tag": "alidns",
+        "server": "223.5.5.5",
+        "tls": {
+          "server_name": "dns.alidns.com"
+        }
+      }
+    ]
+  },
+  "inbounds": [
+    {
+      "type": "tun",
+      "tag": "tun-in",
+      "interface_name": "singbox0",
+      "address": [
+        "172.19.0.1/30"
+      ],
+      "auto_route": true,
+      "strict_route": true,
+      "route_address": [
+        "10.0.0.0/8"
+      ],
+      "stack": "system"
+    }
+  ],
+  "outbounds": [
+    {
+      "type": "http",
+      "tag": "upstream-proxy",
+      "server": "192.0.2.10",
+      "server_port": 8080
+    },
+    {
+      "type": "direct",
+      "tag": "direct"
+    }
+  ],
+  "route": {
+    "auto_detect_interface": true,
+    "rules": [
+      {
+        "port": 53,
+        "action": "hijack-dns"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "action": "sniff"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "domain": [
+          "internal.example.com"
+        ],
+        "action": "route",
+        "outbound": "upstream-proxy"
+      },
+      {
+        "inbound": [
+          "tun-in"
+        ],
+        "network": "tcp",
+        "ip_cidr": [
+          "10.0.0.0/8"
+        ],
+        "action": "route",
+        "outbound": "upstream-proxy"
+      }
+    ],
+    "final": "direct"
+  }
+}

@@ -1,0 +1,31 @@
+# IDE and user settings
+.vs/
+.idea/
+.vscode/
+*.user
+*.suo
+
+# .NET outputs
+**/bin/
+**/obj/
+*.pdb
+
+# Local SDK, NuGet cache, and build artifacts
+.tools/
+artifacts/
+dist/
+.local/
+
+# Local runtime configuration and state
+/config.json
+/relay-settings.json
+/relay-config.json
+/log/
+*.pid
+*.log
+.self-test-error.log
+
+# Temporary files
+*.tmp
+*.bak
+*~

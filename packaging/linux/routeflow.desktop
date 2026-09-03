@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+Name=RouteFlow
+Comment=Configure sing-box client and relay modes
+Exec=routeflow
+Icon=routeflow
+Terminal=false
+Categories=Network;Utility;
+Keywords=sing-box;proxy;VPN;relay;
+StartupNotify=true
